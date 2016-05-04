@@ -7,6 +7,7 @@
 #include "GameFonts.h"
 #include "Debug.h"
 #include "GameManager.h"
+#include "GameMath.h"
 
 #include "SDL2/SDL.h"
 #include "SDL2/SDL_ttf.h"
@@ -39,7 +40,6 @@ struct Scene {
 int init_game(struct Scene *scene, int window_width,
                int window_height, const char* window_title) {
     DEBUG_LOG("Initializing the Scene/Window");
-    SDL_LogInfo(SDL_LOG_PRIORITY_INFO, "No worries");
     scene->w = window_width;
     scene->h = window_height;
     scene->window = SDL_CreateWindow(
@@ -49,6 +49,7 @@ int init_game(struct Scene *scene, int window_width,
              scene->w,
              scene->h,
              SDL_WINDOW_SHOWN);
+    SDL_ShowCursor(0);
     if (scene->window == NULL) {
             DEBUG_ERR(SDL_GetError());
             return -1;
@@ -102,6 +103,8 @@ int main (int argc, char* argv[]) {
     if (init_game(&scene, window_width, window_height, window_title) != 0) {
         return -1;
     }
+
+    // Setup the system
     SDL_SetRenderDrawColor(scene.renderer, 0, 0, 0, 255);
 
     //////////////////////////////
@@ -112,6 +115,17 @@ int main (int argc, char* argv[]) {
     SDL_Surface *spritesheet = IMG_Load("sprites-link.gif");
     SDL_Texture *ss_texture = SDL_CreateTextureFromSurface(scene.renderer,
                                                            spritesheet);
+    SDL_FreeSurface(spritesheet);
+    SDL_Surface *sprite_highlighter = SDL_CreateRGBSurface(0, 1, 1, 32,
+                                                           0, 0, 0, 0);
+    SDL_FillRect(sprite_highlighter, NULL, SDL_MapRGB(sprite_highlighter->format,
+                                                      255, 255, 255));
+    SDL_Texture *sh_texture = SDL_CreateTextureFromSurface(scene.renderer,
+                                                           sprite_highlighter);
+    SDL_SetTextureBlendMode(sh_texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureAlphaMod(sh_texture, 0x99);
+
+
     SDL_Rect cpy_from;
     cpy_from.h = 30;
     cpy_from.w = 30;
@@ -123,6 +137,18 @@ int main (int argc, char* argv[]) {
     cpy_to.w = 30;
     cpy_to.x = 30;
     cpy_to.y = 30;
+
+
+    // For our custom cursor
+    SDL_Rect cursor;
+    cursor.h = 16;
+    cursor.w = 10;
+    cursor.x = 362;
+    cursor.y = 195;
+    SDL_Rect cursor_draw_at;
+    cursor_draw_at.h = 32;
+    cursor_draw_at.w = 20;
+
 
     //////////////////////////////
     //
@@ -189,13 +215,16 @@ int main (int argc, char* argv[]) {
         draw_rect.x = 10;
         draw_rect.y = 10;
         for (int i = 0; i < total_dungeons; i++) {
+            SDL_GetMouseState(&cursor_draw_at.x, &cursor_draw_at.y);
+
+            // Handle the dungeon number surfaces
             sprintf(dungeon_display, "%d", i);
             dungeon_surface = TTF_RenderText_Blended(game_font,
                                                      dungeon_display,
                                                      dungeon_color);
             dungeon_texture = SDL_CreateTextureFromSurface(scene.renderer, dungeon_surface);
 
-            draw_rect.y = (i * 25) + 5;
+            draw_rect.y = (i * 30) + 5;
             SDL_RenderCopy(scene.renderer, dungeon_texture, NULL, &draw_rect);
             SDL_DestroyTexture(dungeon_texture);
         }
@@ -205,7 +234,12 @@ int main (int argc, char* argv[]) {
 
 
         // This portion renders the "buttons"
+        if (point_collides(cursor_draw_at.x, cursor_draw_at.y, cpy_to.x, cpy_to.y, cpy_to.w, cpy_to.h) == 1)
+            SDL_RenderCopy(scene.renderer, sh_texture, NULL, &cpy_to);
+
         SDL_RenderCopy(scene.renderer, ss_texture, &cpy_from, &cpy_to);
+
+        SDL_RenderCopy(scene.renderer, ss_texture, &cursor, &cursor_draw_at);
         SDL_RenderPresent(scene.renderer);
     }
 

@@ -1,5 +1,5 @@
-#ifndef GAMEMATH
-#define GAMEMATH
+#ifndef GAME_MATH_H
+#define GAME_MATH_H
 
 
 /********************************************//**
@@ -21,4 +21,4 @@ int point_collides(int x, int y, int x2, int y2, int w, int h) {
 
     return 0;
 }
-#endif // GAMEMATH
+#endif // GAME_MATH_H

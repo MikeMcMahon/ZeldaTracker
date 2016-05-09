@@ -1,9 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <time.h>
 #include <string.h>
-
-#define DEBUG
 
 #include "GameFonts.h"
 #include "Debug.h"
@@ -14,17 +11,21 @@
 #include "SDL2/SDL_image.h"
 
 
-const int window_width = 200;
-const int window_height = 720;
-const char *window_title = "Zelda Tracker";
-const int total_sprites = 20;
-const int sprite_height = 30;
-const int sprite_width = 30;
-const Uint8 moda_sprite_off = 0x77;
-const Uint8 moda_sprite_hover = 0xCC;
-const Uint8 moda_sprite_on = 0xFF;
-const int sprite_on = 1;
-const int sprite_off = 0;
+const int WINDOW_WIDTH = 200;
+const int WINDOW_HEIGHT = 720;
+const char *WINDOW_TITLE = "Zelda Tracker";
+const int TOTAL_SPRITES = 20;
+const int SPRITE_HEIGHT = 48;
+const int SPRITE_WIDTH = 48;
+const Uint8 SPRITE_MODA_OFF = 0x55;
+const Uint8 SPRITE_MODA_HOVER = 0xAA;
+const Uint8 SPRITE_MODA_ON = 0xFF;
+const int SPRITE_SHEET_GRID_SIZE = 15;
+const int SPRITE_STATE_OFF      = 0x0000;
+const int SPRITE_STATE_ON       = 0x0001;
+const int SPRITE_STATE_HOVER    = 0x0010;
+const int SPRITE_STATE_DISABLED = 0x0100;
+
 struct Scene {
     int h;
     int w;
@@ -35,8 +36,10 @@ struct Scene {
 };
 
 struct Sprite {
-    int x_loc;
-    int y_loc;
+    int s_x;  // x column location in sprite sheet
+    int s_y;  // y column location in sprite sheet
+    int x;      // real world location for rendering
+    int y;      // real world location for rendering
     int state;
 };
 
@@ -45,8 +48,8 @@ struct Sprite {
  * @brief Initializes the game scene.
  *
  * @param scene struct Scene*
- * @param window_width int
- * @param window_height int
+ * @param WINDOW_WIDTH int
+ * @param WINDOW_HEIGHT int
  * @return void
  *
  ***********************************************/
@@ -94,7 +97,7 @@ int init_game(struct Scene *scene, int window_width,
     return 0;
 }
 
-int init_game_sprites(struct Sprite sprites[total_sprites]) {
+int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
     FILE *sprites_file = fopen("sprites.cfg", "r");
     if (!sprites_file) {
         DEBUG_ERR("Unable to open the sprites configuration file");
@@ -111,6 +114,8 @@ int init_game_sprites(struct Sprite sprites[total_sprites]) {
     int count = 0;
     int get_right = 0;
     int cur_sprite = 0;
+    int disabled = 0;
+    int display_row = 0;
     size_t line_len = 0;
     size_t comment_len = 0;
     size_t coords_len = 0;
@@ -118,6 +123,12 @@ int init_game_sprites(struct Sprite sprites[total_sprites]) {
     col[2] = '\0';
     while(fgets(line, sizeof(line), sprites_file)) {
         result = strchr(line, split_on);
+
+        disabled = 0;
+        if (line[0] == '0')
+            disabled = 1;
+
+
         line_len = strlen(line);
         comment_len = strlen(result);
         coords_len = sizeof(char) * (line_len - comment_len);
@@ -133,7 +144,7 @@ int init_game_sprites(struct Sprite sprites[total_sprites]) {
         col[0] = '\0';
         count = 0;
         get_right = 0;
-        for (int i = 0; i < strlen(coords); i++) {
+        for (int i = 2; i < coords_len; i++) {
             if (coords[i] == coords_on) {
                 get_right = 1;
                 count = 0;
@@ -147,11 +158,20 @@ int init_game_sprites(struct Sprite sprites[total_sprites]) {
             count++;
         }
 
-        sprites[cur_sprite].x_loc = atoi(col);
-        sprites[cur_sprite].y_loc = atoi(row);
-        sprites[cur_sprite].state = 0;
+        sprites[cur_sprite].state = (disabled == 0) ? SPRITE_STATE_OFF : SPRITE_STATE_DISABLED;
+        if (disabled == 1)
+            goto cleanup; // OH GOD A VALID USE FOR GOTO...could use a nested if/else but f. if/else branch prediction
+
+        sprites[cur_sprite].s_x = atoi(col);
+        sprites[cur_sprite].s_y = atoi(row);
+        if (((cur_sprite - 1) % 4 == 0) && cur_sprite != 1)
+            display_row++;
+
+        sprites[cur_sprite].x = 10 + (((cur_sprite - 1) % 4) * SPRITE_WIDTH);
+        sprites[cur_sprite].y = 376 + (display_row * SPRITE_HEIGHT) + (display_row * 16);
         cur_sprite++;
 
+        cleanup:
         free(coords);
     }
 
@@ -161,7 +181,7 @@ int init_game_sprites(struct Sprite sprites[total_sprites]) {
 }
 
 int init_game(struct Scene*, int, int, const char*);
-int init_game_sprites(struct Sprite[total_sprites]);
+int init_game_sprites(struct Sprite[TOTAL_SPRITES]);
 int main (int argc, char* argv[]) {
     struct Scene scene;
     TTF_Font *game_font;
@@ -179,7 +199,7 @@ int main (int argc, char* argv[]) {
     IMG_Init(IMG_INIT_PNG);
     game_font = TTF_OpenFont(GF_PRESS_START2P, 16);
 
-    if (init_game(&scene, window_width, window_height, window_title) != 0) {
+    if (init_game(&scene, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE) != 0) {
         return EXIT_FAILURE;
     }
 
@@ -195,7 +215,7 @@ int main (int argc, char* argv[]) {
     SDL_Texture *ss_texture = SDL_CreateTextureFromSurface(scene.renderer,
                                                            spritesheet);
     SDL_SetTextureBlendMode(ss_texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(ss_texture, moda_sprite_off);
+    SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
 
     SDL_FreeSurface(spritesheet);
     SDL_Surface *sprite_highlighter = SDL_CreateRGBSurface(0, 1, 1, 32,
@@ -207,22 +227,21 @@ int main (int argc, char* argv[]) {
     SDL_SetTextureBlendMode(sh_texture, SDL_BLENDMODE_BLEND);
     SDL_SetTextureAlphaMod(sh_texture, 0x99);
 
-    struct Sprite game_sprites[total_sprites];
+    struct Sprite game_sprites[TOTAL_SPRITES];
     if (init_game_sprites(game_sprites) != 0)
         return EXIT_FAILURE;
 
 
-    SDL_Rect cpy_from;
-    cpy_from.h = 16;
-    cpy_from.w = 16;
-    cpy_from.x = 0;
-    cpy_from.y = 0;
-
-    SDL_Rect cpy_to;
-    cpy_to.h = 30;
-    cpy_to.w = 30;
-    cpy_to.x = 30;
-    cpy_to.y = 30;
+    SDL_Rect link_walk_frm = {
+            30, 0,
+            16, 16
+    };
+    SDL_Rect link_walk_to = {
+            170,
+            30,
+            16,
+            16
+    };
 
     // For our custom cursor
     SDL_Rect cursor;
@@ -234,26 +253,36 @@ int main (int argc, char* argv[]) {
     cursor_draw_at.h = 32;
     cursor_draw_at.w = 20;
 
-    //////////////////////////////
-    //
-    // Shit for the sprites
-    //
-    //////////////////////////////
-    SDL_Rect draw_rect;
-    SDL_Rect triforce_frm = {game_sprites[0].x_loc * 15, game_sprites[0].y_loc * 15, 15, 15},
-             triforce_to = {60, 60, sprite_width, sprite_height};
+    SDL_Rect font_draw_rect;
+    font_draw_rect.h = 24;
+    font_draw_rect.w = 24;
+    font_draw_rect.x = 10;
+    font_draw_rect.y = 10;
+
+    SDL_Rect triforce_frm =
+            {
+                    game_sprites[0].s_x * SPRITE_SHEET_GRID_SIZE, // x-pos in sprite sheet
+                    game_sprites[0].s_y * SPRITE_SHEET_GRID_SIZE, // y-pos in sprite sheet
+                    16, 16
+            },
+             triforce_to = {30, 0, SPRITE_WIDTH, SPRITE_HEIGHT};
+
 
     SDL_Rect items_frm = {0, 0, 16, 16},
-             items_to = { 60, 120, sprite_width, sprite_height};
-    Uint8 sprite_moda_mode = moda_sprite_off;
+             items_to = { 60, 120, SPRITE_WIDTH, SPRITE_HEIGHT};
+    Uint8 sprite_moda_mode = SPRITE_MODA_OFF;
 
     //////////////////////////////
     //
     // Managing the boards/levels
     //
     //////////////////////////////
-    int total_dungeons = 10;
+    int total_dungeons = 9;
+    struct Sprite triforce_sprites[total_dungeons];
+    struct Sprite dungeon_sprites[total_dungeons];
+
     char dungeon_display[4];
+    Uint8 triforce_moda_mode = SPRITE_MODA_OFF;
     SDL_Color dungeon_color;
     dungeon_color.r = 255;
     dungeon_color.g = 255;
@@ -261,6 +290,26 @@ int main (int argc, char* argv[]) {
     dungeon_color.a = 255;
     SDL_Surface *dungeon_surface;
     SDL_Texture *dungeon_texture[total_dungeons];
+
+
+    for (int i = 0; i < total_dungeons; i++) {
+        // Handle the dungeon number surfaces
+        sprintf(dungeon_display, "%d", (i + 1));
+        dungeon_surface = TTF_RenderText_Blended(game_font,
+                                                 dungeon_display,
+                                                 dungeon_color);
+        dungeon_texture[i] = SDL_CreateTextureFromSurface(scene.renderer, dungeon_surface);
+
+        dungeon_sprites[i].x = 10;
+        dungeon_sprites[i].y = 20 + (i * 40);
+
+        triforce_sprites[i].x = 30;
+        triforce_sprites[i].y = dungeon_sprites[i].y - 16;
+        triforce_sprites[i].state = SPRITE_STATE_OFF;
+        font_draw_rect.y = (i * 30) + 5;
+
+        SDL_FreeSurface(dungeon_surface);
+    }
 
     //////////////////////////////
     //
@@ -275,112 +324,230 @@ int main (int argc, char* argv[]) {
     float ms_per_update = (1000 / frames_per_second);
     SDL_Event e;
     int quit = 0;
-
     previous = SDL_GetTicks();
 
-
-    for (int i = 0; i < total_dungeons; i++) {
-        SDL_GetMouseState(&cursor_draw_at.x, &cursor_draw_at.y);
-
-        // Handle the dungeon number surfaces
-        sprintf(dungeon_display, "%d", i);
-        dungeon_surface = TTF_RenderText_Blended(game_font,
-                                                 dungeon_display,
-                                                 dungeon_color);
-        dungeon_texture[i] = SDL_CreateTextureFromSurface(scene.renderer, dungeon_surface);
-
-        draw_rect.y = (i * 30) + 5;
-
-        SDL_FreeSurface(dungeon_surface);
-    }
-
     int mouse_pressed = 0;
-    float next_mouse_check = 0;
+    int walk_cycle = 0;
+    int stabbing_running = 0;
+    int facing = 0; // 0 = left, 1 = down, 2 = right, 3 = up
+    float stab_ends_in = 0;
     while(quit == 0) {
         current = SDL_GetTicks();
         elapsed = current - previous;
         previous = current;
         lag += elapsed;
 
-        SDL_PollEvent(&e);
-        if (e.type == SDL_QUIT)
-            quit = -1;
-        if (e.type == SDL_KEYDOWN)
-            if (e.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+        mouse_pressed = 0;
+        while(SDL_PollEvent(&e)) {
+            if (e.type == SDL_QUIT) {
                 quit = -1;
-        if (e.type == SDL_MOUSEBUTTONUP)
-            if (e.button.button & SDL_BUTTON_LEFT && e.button.clicks == 1) {
-                mouse_pressed = 1;
-                printf("mouse button was pressed/released\n");
             }
-        else
-                mouse_pressed = 0;
+
+            if (e.type == SDL_KEYDOWN) if (e.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
+                quit = -1;
+            }
+
+            if (e.type == SDL_MOUSEBUTTONDOWN)
+                if (e.button.button & SDL_BUTTON_LEFT) {
+                    mouse_pressed = 1;
+            }
+        }
+
+        if (mouse_pressed == 1 && stabbing_running != 1) {
+            stabbing_running = 1;
+            stab_ends_in = current + (ms_per_update * 15);
+
+            switch(facing) {
+                default: // left
+                    link_walk_frm.x = 24;
+                    link_walk_frm.y = 90;
+                    link_walk_frm.w = 28;
+                    link_walk_frm.h = 16;
+                    link_walk_to.x -= 12;
+                    break;
+                case 2: // right
+                    link_walk_frm.x = 83;
+                    link_walk_frm.y = 90;
+                    link_walk_frm.w = 28;
+                    link_walk_frm.h = 16;
+                    break;
+                case 3: // up
+                    link_walk_frm.x = 60;
+                    link_walk_frm.y = 83;
+                    link_walk_frm.h = 28;
+                    link_walk_frm.w = 16;
+                    link_walk_to.y -= 12;
+                    break;
+                case 1: // down
+                    link_walk_frm.x = 0;
+                    link_walk_frm.y = 83;
+                    link_walk_frm.h = 28;
+                    link_walk_frm.w = 16;
+                    break;
+            }
+
+            link_walk_to.h = link_walk_frm.h;
+            link_walk_to.w = link_walk_frm.w;
+        }
 
          // Really doubt we'll have lag, but a good habit i guess.
+         SDL_GetMouseState(&cursor_draw_at.x, &cursor_draw_at.y);
          while (lag >= ms_per_update) {
-             cpy_from.x = ((SDL_GetTicks() / 200) % 4) * 30;
+
+             if (stab_ends_in <= current && stabbing_running == 1) {
+                 stabbing_running = 0;
+                 switch(facing) {
+                     case 0:
+                         link_walk_to.x += 12;
+                         break;
+                     case 3:
+                         link_walk_to.y += 12;
+                         break;
+                     default:
+                         break;
+                 }
+             }
+
+             if (stabbing_running == 0) {
+                link_walk_frm.y = ((SDL_GetTicks() / 200) % 2) * 30;
+                if (walk_cycle == 0) {
+                     link_walk_to.x = (--link_walk_to.x < 80) ? 80 : link_walk_to.x;
+
+                     if (link_walk_to.x == 80) { // time to turn facing down
+                         facing = 1;
+                         link_walk_frm.x = 0;
+                         link_walk_to.y = (++link_walk_to.y > 348) ? 348 : link_walk_to.y;
+
+                         if (link_walk_to.y == 348) { // time to turn facing right
+                             facing = 2;
+                             link_walk_frm.x = 90;
+                             walk_cycle = 1;
+                         }
+                     }
+                 }
+                 if (walk_cycle == 1) {
+                     link_walk_to.x = (++link_walk_to.x > 170) ? 170 : link_walk_to.x;
+
+                     if (link_walk_to.x == 170) { // time to turn facing up
+                         facing = 3;
+                         link_walk_frm.x = 60;
+                         link_walk_to.y = (--link_walk_to.y < 30) ? 30 : link_walk_to.y;
+
+                         if (link_walk_to.y == 30) { // time to turn facing left
+                             facing = 0;
+                             link_walk_frm.x = 30;
+                             walk_cycle = 0;
+                         }
+                     }
+                 }
+             }
+
+             stab_ends_in -= ms_per_update;
              lag -= ms_per_update;
          }
 
-        SDL_RenderClear(scene.renderer);
-        SDL_RenderCopy(scene.renderer, scene.texture, NULL, NULL);
-
-        // This renders the *game board* levels
-        draw_rect.h = 15;
-        draw_rect.w = 15;
-        draw_rect.x = 10;
-        draw_rect.y = 10;
         for (int i = 0; i < total_dungeons; i++) {
-            SDL_GetMouseState(&cursor_draw_at.x, &cursor_draw_at.y);
-            draw_rect.y = (i * 30) + 5;
-            SDL_RenderCopy(scene.renderer, dungeon_texture[i], NULL, &draw_rect);
-        }
+            triforce_to.x = triforce_sprites[i].x;
+            triforce_to.y = triforce_sprites[i].y;
 
-        SDL_UpdateTexture(scene.texture, NULL,
-                          scene.surface->pixels, scene.surface->pitch);
-
-
-        // This portion renders the "buttons"
-        if (point_collides(cursor_draw_at.x, cursor_draw_at.y, cpy_to.x, cpy_to.y, cpy_to.w, cpy_to.h) == 1)
-            SDL_RenderCopy(scene.renderer, sh_texture, NULL, &cpy_to);
-
-        SDL_RenderCopy(scene.renderer, ss_texture, &cpy_from, &cpy_to);
-//        SDL_RenderCopy(scene.renderer, ss_texture, &triforce_frm, &triforce_to);
-
-        for (int i = 1; i < total_sprites; i++) {
-            items_frm.x = game_sprites[i].x_loc * 15;
-            items_frm.y = game_sprites[i].y_loc * 15;
-            items_to.y = 120 + ((i - 1) * 30);
-
-            if (point_collides(cursor_draw_at.x, cursor_draw_at.y, items_to.x, items_to.y, items_to.w, items_to.h) == 1) {
+            if (point_collides(cursor_draw_at.x, cursor_draw_at.y, triforce_to.x,
+                               triforce_to.y, triforce_to.w, triforce_to.h) == GM_COLLIDES) {
+                triforce_sprites[i].state |= SPRITE_STATE_HOVER;
                 if (mouse_pressed == 1) {
-                    if (game_sprites[i].state == sprite_on) {
-                        game_sprites[i].state = sprite_off;
-                        printf("STATE IS ON\n");
-                    }
-                    else {
-                        game_sprites[i].state = sprite_on;
-                        printf("STATE IS OFF\n");
+                    if ((triforce_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {
+                        triforce_sprites[i].state ^= SPRITE_STATE_ON;
+                    } else {
+                        triforce_sprites[i].state |= SPRITE_STATE_ON;
                     }
                 }
+            } else {
+                if ((triforce_sprites[i].state & SPRITE_STATE_HOVER) == SPRITE_STATE_HOVER) {
+                    triforce_sprites[i].state ^= SPRITE_STATE_HOVER;
+                }
+            }
+        }
 
-                sprite_moda_mode = moda_sprite_hover;
+
+        for (int i = 1; i < TOTAL_SPRITES; i++) {
+            // skip rendering / processing
+            if ((game_sprites[i].state & SPRITE_STATE_DISABLED) == SPRITE_STATE_DISABLED)
+                continue;
+
+            items_to.x = game_sprites[i].x;
+            items_to.y = game_sprites[i].y;
+
+            if (point_collides(cursor_draw_at.x, cursor_draw_at.y, items_to.x, items_to.y, items_to.w, items_to.h) == GM_COLLIDES) {
+                game_sprites[i].state |= SPRITE_STATE_HOVER;
+                if (mouse_pressed == 1) {
+                    if ((game_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {
+                        game_sprites[i].state ^= SPRITE_STATE_ON;
+                    } else {
+                        game_sprites[i].state |= SPRITE_STATE_ON;
+                    }
+                }
+            } else {
+                if ((game_sprites[i].state & SPRITE_STATE_HOVER) == SPRITE_STATE_HOVER) {
+                    game_sprites[i].state ^= SPRITE_STATE_HOVER;
+                }
+            }
+        }
+
+        SDL_RenderClear(scene.renderer);
+        SDL_RenderCopy(scene.renderer, scene.texture, NULL, NULL);
+        SDL_UpdateTexture(scene.texture, NULL, scene.surface->pixels, scene.surface->pitch);
+
+
+        SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_ON);
+        SDL_RenderCopy(scene.renderer, ss_texture, &link_walk_frm, &link_walk_to);
+        SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
+
+
+        for (int i = 0; i < total_dungeons; i++) {
+            font_draw_rect.x = dungeon_sprites[i].x;
+            font_draw_rect.y = dungeon_sprites[i].y;
+            triforce_to.x = triforce_sprites[i].x;
+            triforce_to.y = triforce_sprites[i].y;
+
+            triforce_moda_mode = SPRITE_MODA_OFF;
+            if ((triforce_sprites[i].state & SPRITE_STATE_HOVER) == SPRITE_STATE_HOVER) {
+                triforce_moda_mode = SPRITE_MODA_HOVER;
+            }
+            if ((triforce_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {
+                triforce_moda_mode = SPRITE_MODA_ON;
             }
 
-            if (game_sprites[i].state == sprite_on)
-                sprite_moda_mode = moda_sprite_on;
+            SDL_SetTextureAlphaMod(ss_texture, triforce_moda_mode);
+            SDL_RenderCopy(scene.renderer, ss_texture, &triforce_frm, &triforce_to);
+            SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
+
+            SDL_RenderCopy(scene.renderer, dungeon_texture[i], NULL, &font_draw_rect);
+        }
+
+        for (int i = 1; i < TOTAL_SPRITES; i++) {
+            // skip rendering / processing
+            if ((game_sprites[i].state & SPRITE_STATE_DISABLED) == SPRITE_STATE_DISABLED)
+                continue;
+
+            items_frm.x = game_sprites[i].s_x * 15;
+            items_frm.y = game_sprites[i].s_y * 15;
+            items_to.x = game_sprites[i].x;
+            items_to.y = game_sprites[i].y;
+
+            sprite_moda_mode = SPRITE_MODA_OFF;
+            if ((game_sprites[i].state & SPRITE_STATE_HOVER) == SPRITE_STATE_HOVER)
+                sprite_moda_mode = SPRITE_MODA_HOVER;
+
+            if ((game_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON)
+                sprite_moda_mode = SPRITE_MODA_ON;
 
             SDL_SetTextureAlphaMod(ss_texture, sprite_moda_mode);
             SDL_RenderCopy(scene.renderer, ss_texture, &items_frm, &items_to);
-            sprite_moda_mode = moda_sprite_off;
-            SDL_SetTextureAlphaMod(ss_texture, sprite_moda_mode);
-
+            SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
         }
-        mouse_pressed = 0;
 
-        SDL_SetTextureAlphaMod(ss_texture, moda_sprite_on);
+        SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_ON);
         SDL_RenderCopy(scene.renderer, ss_texture, &cursor, &cursor_draw_at);
-        SDL_SetTextureAlphaMod(ss_texture, moda_sprite_off);
+        SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
 
         SDL_RenderPresent(scene.renderer);
     }

@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#define DEBUG
+
 #include "GameFonts.h"
 #include "Debug.h"
+#include "GameElements.h"
 #include "GameMath.h"
 
 #include "SDL2/SDL.h"
@@ -26,22 +29,7 @@ const int SPRITE_STATE_ON       = 0x0001;
 const int SPRITE_STATE_HOVER    = 0x0010;
 const int SPRITE_STATE_DISABLED = 0x0100;
 
-struct Scene {
-    int h;
-    int w;
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    SDL_Texture *texture;
-    SDL_Surface *surface;
-};
 
-struct Sprite {
-    int s_x;  // x column location in sprite sheet
-    int s_y;  // y column location in sprite sheet
-    int x;      // real world location for rendering
-    int y;      // real world location for rendering
-    int state;
-};
 
 
 /********************************************//**

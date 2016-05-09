@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.5)
 project(ZeldaTracker)
 
-set (SOURCE_FILES main.c GameMath.h)
+set (SOURCE_FILES main.c GameMath.h GameElements.h)
 set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11 -Wall")
 
 find_package(SDL)

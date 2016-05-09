@@ -31,8 +31,8 @@ const int SPRITE_WIDTH = 48;
  * @return void
  *
  ***********************************************/
-int init_game(struct Scene *scene, int window_width,
-               int window_height, const char* window_title) {
+int ZR_InitGame(struct Scene *scene, int window_width,
+                int window_height, const char *window_title) {
     DEBUG_LOG("Initializing the Scene/Window");
     scene->w = window_width;
     scene->h = window_height;
@@ -75,7 +75,7 @@ int init_game(struct Scene *scene, int window_width,
     return 0;
 }
 
-int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
+int ZR_InitGameSprites(struct Sprite *sprites) {
     FILE *sprites_file = fopen("sprites.cfg", "r");
     if (!sprites_file) {
         DEBUG_ERR("Unable to open the sprites configuration file");
@@ -162,8 +162,8 @@ int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
     return 0;
 }
 
-int init_game(struct Scene*, int, int, const char*);
-int init_game_sprites(struct Sprite[TOTAL_SPRITES]);
+int ZR_InitGame(struct Scene *, int, int, const char *);
+int ZR_InitGameSprites(struct Sprite *);
 int main (int argc, char* argv[]) {
     struct Scene scene;
     TTF_Font *game_font;
@@ -181,7 +181,7 @@ int main (int argc, char* argv[]) {
     IMG_Init(IMG_INIT_PNG);
     game_font = TTF_OpenFont(GF_PRESS_START2P, 16);
 
-    if (init_game(&scene, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE) != 0) {
+    if (ZR_InitGame(&scene, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE) != 0) {
         return EXIT_FAILURE;
     }
 
@@ -202,7 +202,7 @@ int main (int argc, char* argv[]) {
     SDL_FreeSurface(spritesheet);
 
     struct Sprite game_sprites[TOTAL_SPRITES];
-    if (init_game_sprites(game_sprites) != 0)
+    if (ZR_InitGameSprites(game_sprites) != 0)
         return EXIT_FAILURE;
 
 
@@ -383,7 +383,7 @@ int main (int argc, char* argv[]) {
              }
 
              if (stabbing_running == 0) {
-                link_walk_frm.y = ((SDL_GetTicks() / 200) % 2) * 30;
+                link_walk_frm.y = ((current / 200) % 2) * 30;
                 if (walk_cycle == 0) {
                      link_walk_to.x = (--link_walk_to.x < 80) ? 80 : link_walk_to.x;
 

@@ -20,16 +20,6 @@ const char *WINDOW_TITLE = "Zelda Tracker";
 const int TOTAL_SPRITES = 20;
 const int SPRITE_HEIGHT = 48;
 const int SPRITE_WIDTH = 48;
-const Uint8 SPRITE_MODA_OFF = 0x55;
-const Uint8 SPRITE_MODA_HOVER = 0xAA;
-const Uint8 SPRITE_MODA_ON = 0xFF;
-const int SPRITE_SHEET_GRID_SIZE = 15;
-const int SPRITE_STATE_OFF      = 0x0000;
-const int SPRITE_STATE_ON       = 0x0001;
-const int SPRITE_STATE_HOVER    = 0x0010;
-const int SPRITE_STATE_DISABLED = 0x0100;
-
-
 
 
 /********************************************//**
@@ -102,13 +92,12 @@ int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
     int count = 0;
     int get_right = 0;
     int cur_sprite = 0;
+    int cur_sprite_pos = 0;
     int disabled = 0;
     int display_row = 0;
     size_t line_len = 0;
     size_t comment_len = 0;
     size_t coords_len = 0;
-    col[2] = '\0';
-    col[2] = '\0';
     while(fgets(line, sizeof(line), sprites_file)) {
         result = strchr(line, split_on);
 
@@ -128,8 +117,10 @@ int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
 
         row[0] = '\0';
         row[1] = '\0';
-        col[1] = '\0';
+        row[2] = '\0';
         col[0] = '\0';
+        col[1] = '\0';
+        col[2] = '\0';
         count = 0;
         get_right = 0;
         for (int i = 2; i < coords_len; i++) {
@@ -146,20 +137,23 @@ int init_game_sprites(struct Sprite sprites[TOTAL_SPRITES]) {
             count++;
         }
 
-        sprites[cur_sprite].state = (disabled == 0) ? SPRITE_STATE_OFF : SPRITE_STATE_DISABLED;
-        if (disabled == 1)
+        GE_InitSprite(&sprites[cur_sprite], (disabled == 0) ? SPRITE_STATE_OFF : SPRITE_STATE_DISABLED);
+        if (disabled == 1) {
             goto cleanup; // OH GOD A VALID USE FOR GOTO...could use a nested if/else but f. if/else branch prediction
+        }
 
         sprites[cur_sprite].s_x = atoi(col);
         sprites[cur_sprite].s_y = atoi(row);
-        if (((cur_sprite - 1) % 4 == 0) && cur_sprite != 1)
+        if (((cur_sprite_pos - 1) % 4 == 0) && cur_sprite_pos != 1)
             display_row++;
 
-        sprites[cur_sprite].x = 10 + (((cur_sprite - 1) % 4) * SPRITE_WIDTH);
+        sprites[cur_sprite].x = 10 + (((cur_sprite_pos - 1) % 4) * SPRITE_WIDTH);
         sprites[cur_sprite].y = 376 + (display_row * SPRITE_HEIGHT) + (display_row * 16);
-        cur_sprite++;
+        cur_sprite_pos++;
+
 
         cleanup:
+        cur_sprite++;
         free(coords);
     }
 
@@ -206,14 +200,6 @@ int main (int argc, char* argv[]) {
     SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
 
     SDL_FreeSurface(spritesheet);
-    SDL_Surface *sprite_highlighter = SDL_CreateRGBSurface(0, 1, 1, 32,
-                                                           0, 0, 0, 0);
-    SDL_FillRect(sprite_highlighter, NULL, SDL_MapRGB(sprite_highlighter->format,
-                                                      255, 255, 255));
-    SDL_Texture *sh_texture = SDL_CreateTextureFromSurface(scene.renderer,
-                                                           sprite_highlighter);
-    SDL_SetTextureBlendMode(sh_texture, SDL_BLENDMODE_BLEND);
-    SDL_SetTextureAlphaMod(sh_texture, 0x99);
 
     struct Sprite game_sprites[TOTAL_SPRITES];
     if (init_game_sprites(game_sprites) != 0)
@@ -438,8 +424,8 @@ int main (int argc, char* argv[]) {
             triforce_to.x = triforce_sprites[i].x;
             triforce_to.y = triforce_sprites[i].y;
 
-            if (point_collides(cursor_draw_at.x, cursor_draw_at.y, triforce_to.x,
-                               triforce_to.y, triforce_to.w, triforce_to.h) == GM_COLLIDES) {
+            if (GM_PointCollides(cursor_draw_at.x, cursor_draw_at.y, triforce_to.x,
+                                 triforce_to.y, triforce_to.w, triforce_to.h) == GM_COLLIDES) {
                 triforce_sprites[i].state |= SPRITE_STATE_HOVER;
                 if (mouse_pressed == 1) {
                     if ((triforce_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {
@@ -464,7 +450,8 @@ int main (int argc, char* argv[]) {
             items_to.x = game_sprites[i].x;
             items_to.y = game_sprites[i].y;
 
-            if (point_collides(cursor_draw_at.x, cursor_draw_at.y, items_to.x, items_to.y, items_to.w, items_to.h) == GM_COLLIDES) {
+            if (GM_PointCollides(cursor_draw_at.x, cursor_draw_at.y, items_to.x,
+                                 items_to.y, items_to.w, items_to.h) == GM_COLLIDES) {
                 game_sprites[i].state |= SPRITE_STATE_HOVER;
                 if (mouse_pressed == 1) {
                     if ((game_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {

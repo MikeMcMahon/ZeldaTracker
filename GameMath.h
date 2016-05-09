@@ -17,7 +17,7 @@ const int GM_NO_COLLIDES = 0;
  * @return int
  * 1 if collides, 0 if not
  ***********************************************/
-int point_collides(int x, int y, int x2, int y2, int w, int h) {
+int GM_PointCollides(int x, int y, int x2, int y2, int w, int h) {
     if (x >= x2 && x <= x2 + w)
         if (y >= y2 && y <= y2 + h)
             return GM_COLLIDES;

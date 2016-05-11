@@ -17,7 +17,7 @@
 const int WINDOW_WIDTH = 200;
 const int WINDOW_HEIGHT = 720;
 const char *WINDOW_TITLE = "Zelda Tracker";
-const int TOTAL_SPRITES = 20;
+const int TOTAL_SPRITES = 22;
 const int SPRITE_HEIGHT = 48;
 const int SPRITE_WIDTH = 48;
 

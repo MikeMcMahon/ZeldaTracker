@@ -252,6 +252,7 @@ int main (int argc, char* argv[]) {
     //
     //////////////////////////////
     int total_dungeons = 9;
+    int track_for_dungeon = -1;
     struct Sprite triforce_sprites[total_dungeons];
     struct Sprite dungeon_sprites[total_dungeons];
 
@@ -264,6 +265,11 @@ int main (int argc, char* argv[]) {
     dungeon_color.a = 255;
     SDL_Surface *dungeon_surface;
     SDL_Texture *dungeon_texture[total_dungeons];
+    int item_track_at[TOTAL_SPRITES];
+    SDL_Rect item_track_to = { 0, 0, 16, 16};
+
+    for (int i = 0; i < TOTAL_SPRITES; i++)
+        item_track_at[i] = -1;
 
 
     for (int i = 0; i < total_dungeons; i++) {
@@ -319,17 +325,37 @@ int main (int argc, char* argv[]) {
 
             if (e.type == SDL_KEYDOWN) {
                 switch(e.key.keysym.scancode) {
-
                     case SDL_SCANCODE_0:
+                        // CLEAR a tracked item
+                        track_for_dungeon = 0;
+                        break;
                     case SDL_SCANCODE_1:
+                        track_for_dungeon = 1;
+                        break;
                     case SDL_SCANCODE_2:
+                        track_for_dungeon = 2;
+                        break;
                     case SDL_SCANCODE_3:
+                        track_for_dungeon = 3;
+                        break;
                     case SDL_SCANCODE_4:
+                        track_for_dungeon = 4;
+                        break;
                     case SDL_SCANCODE_5:
+                        track_for_dungeon = 5;
+                        break;
                     case SDL_SCANCODE_6:
+                        track_for_dungeon = 6;
+                        break;
                     case SDL_SCANCODE_7:
+                        track_for_dungeon = 7;
+                        break;
                     case SDL_SCANCODE_8:
+                        track_for_dungeon = 8;
+                        break;
                     case SDL_SCANCODE_9:
+                        track_for_dungeon = 9;
+                        break;
 
                     case SDL_SCANCODE_ESCAPE:
                         quit = -1;
@@ -471,6 +497,8 @@ int main (int argc, char* argv[]) {
             if (GM_PointCollides(cursor_draw_at.x, cursor_draw_at.y, items_to.x,
                                  items_to.y, items_to.w, items_to.h) == GM_COLLIDES) {
                 game_sprites[i].state |= SPRITE_STATE_HOVER;
+
+                // Did we click? HANDLE IT
                 if (mouse_pressed == 1) {
                     if ((game_sprites[i].state & SPRITE_STATE_ON) == SPRITE_STATE_ON) {
                         game_sprites[i].state ^= SPRITE_STATE_ON;
@@ -478,6 +506,13 @@ int main (int argc, char* argv[]) {
                         game_sprites[i].state |= SPRITE_STATE_ON;
                     }
                 }
+
+                // Maybe we just pressed a 0-9 button
+                if (track_for_dungeon >= 0) {
+                    item_track_at[i] = track_for_dungeon;
+                    track_for_dungeon = -1;
+                }
+
             } else {
                 if ((game_sprites[i].state & SPRITE_STATE_HOVER) == SPRITE_STATE_HOVER) {
                     game_sprites[i].state ^= SPRITE_STATE_HOVER;
@@ -536,6 +571,12 @@ int main (int argc, char* argv[]) {
             SDL_SetTextureAlphaMod(ss_texture, sprite_moda_mode);
             SDL_RenderCopy(scene.renderer, ss_texture, &items_frm, &items_to);
             SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_OFF);
+
+            if (item_track_at[i] >= 1) {
+                item_track_to.x = items_to.x + (items_to.w - item_track_to.w);
+                item_track_to.y = items_to.y + (items_to.h - item_track_to.h);
+                SDL_RenderCopy(scene.renderer, dungeon_texture[item_track_at[i] -1], NULL, &item_track_to);
+            }
         }
 
         SDL_SetTextureAlphaMod(ss_texture, SPRITE_MODA_ON);

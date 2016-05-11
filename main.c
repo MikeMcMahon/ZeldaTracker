@@ -2,17 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 
-#define DEBUG
+#include "SDL2/SDL.h"
+#include "SDL2/SDL_ttf.h"
+#include "SDL2/SDL_image.h"
 
 #include "GameFonts.h"
 #include "Debug.h"
 #include "GameElements.h"
 #include "GameMath.h"
-
-#include "SDL2/SDL.h"
-#include "SDL2/SDL_ttf.h"
-#include "SDL2/SDL_image.h"
-
 
 const int WINDOW_WIDTH = 200;
 const int WINDOW_HEIGHT = 720;

@@ -53,6 +53,7 @@ int ZR_InitGame(struct Scene *scene, int window_width,
                                 scene->window,
                                 -1,
                                 SDL_RENDERER_ACCELERATED);
+
     if (scene->window == NULL) {
             DEBUG_ERR(SDL_GetError());
             return -1;
@@ -67,6 +68,8 @@ int ZR_InitGame(struct Scene *scene, int window_width,
     scene->texture = SDL_CreateTextureFromSurface(
                                          scene->renderer,
                                          scene->surface);
+
+    SDL_FillRect(scene->surface, NULL, SDL_MapRGBA(scene->surface->format, 0, 0, 0, 255));
     if (scene->texture == NULL) {
             DEBUG_ERR(SDL_GetError());
             return -1;

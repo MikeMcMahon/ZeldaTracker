@@ -28,7 +28,7 @@ const int SPRITE_WIDTH = 48;
  * @return void
  *
  ***********************************************/
-int ZR_InitGame(struct Scene *scene, int window_width,
+int ZT_InitGame(struct Scene *scene, int window_width,
                 int window_height, const char *window_title) {
     DEBUG_LOG("Initializing the Scene/Window");
     scene->w = window_width;
@@ -75,7 +75,7 @@ int ZR_InitGame(struct Scene *scene, int window_width,
     return 0;
 }
 
-int ZR_InitGameSprites(struct Sprite *sprites) {
+int ZT_InitGameSprites(struct Sprite *sprites) {
     FILE *sprites_file = fopen("sprites.cfg", "r");
     if (!sprites_file) {
         DEBUG_ERR("Unable to open the sprites configuration file");
@@ -162,8 +162,8 @@ int ZR_InitGameSprites(struct Sprite *sprites) {
     return 0;
 }
 
-int ZR_InitGame(struct Scene *, int, int, const char *);
-int ZR_InitGameSprites(struct Sprite *);
+int ZT_InitGame(struct Scene *, int, int, const char *);
+int ZT_InitGameSprites(struct Sprite *);
 int main (int argc, char* argv[]) {
     struct Scene scene;
     TTF_Font *game_font;
@@ -181,7 +181,7 @@ int main (int argc, char* argv[]) {
     IMG_Init(IMG_INIT_PNG);
     game_font = TTF_OpenFont(GF_PRESS_START2P, 16);
 
-    if (ZR_InitGame(&scene, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE) != 0) {
+    if (ZT_InitGame(&scene, WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE) != 0) {
         return EXIT_FAILURE;
     }
 
@@ -202,7 +202,7 @@ int main (int argc, char* argv[]) {
     SDL_FreeSurface(spritesheet);
 
     struct Sprite game_sprites[TOTAL_SPRITES];
-    if (ZR_InitGameSprites(game_sprites) != 0)
+    if (ZT_InitGameSprites(game_sprites) != 0)
         return EXIT_FAILURE;
 
 

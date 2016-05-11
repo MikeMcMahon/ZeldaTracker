@@ -317,8 +317,25 @@ int main (int argc, char* argv[]) {
                 quit = -1;
             }
 
-            if (e.type == SDL_KEYDOWN) if (e.key.keysym.scancode == SDL_SCANCODE_ESCAPE) {
-                quit = -1;
+            if (e.type == SDL_KEYDOWN) {
+                switch(e.key.keysym.scancode) {
+
+                    case SDL_SCANCODE_0:
+                    case SDL_SCANCODE_1:
+                    case SDL_SCANCODE_2:
+                    case SDL_SCANCODE_3:
+                    case SDL_SCANCODE_4:
+                    case SDL_SCANCODE_5:
+                    case SDL_SCANCODE_6:
+                    case SDL_SCANCODE_7:
+                    case SDL_SCANCODE_8:
+                    case SDL_SCANCODE_9:
+
+                    case SDL_SCANCODE_ESCAPE:
+                        quit = -1;
+                    default:
+                        break;
+                }
             }
 
             if (e.type == SDL_MOUSEBUTTONDOWN)
@@ -327,6 +344,7 @@ int main (int argc, char* argv[]) {
             }
         }
 
+        // This portion causes the sprite for link to change to the stabbing animation
         if (mouse_pressed == 1 && stabbing_running != 1) {
             stabbing_running = 1;
             stab_ends_in = current + (ms_per_update * 15);
